@@ -25,13 +25,19 @@ export op_env=${op_env}
 #sudo apt-get install -y libffi-devel
 #AttributeError: 'module' object has no attribute 'Cryptography_HAS_SSL_ST'
 
+# cffi can't find ffi.h, needs libffi-dev
+sudo apt-get install -y libffi-dev
 sudo easy_install -U cffi
 sudo easy_install -U cryptography
 
 # There's a problem with U16's pip2 which is used by misc/bootstrap_pipeline.sh
 # this fix, if it works, should go into that file probably.
-sudo python -m easy_install --upgrade pyOpenSSL==19.1.0
-
+# I thought this worked but maybe not:
+#sudo python -m easy_install --upgrade pyOpenSSL==19.1.0
+#   File "build/bdist.linux-x86_64/egg/OpenSSL/SSL.py", line 199, in <module>
+# AttributeError: 'module' object has no attribute 'Cryptography_HAS_SSL_ST'
+apt-get --auto-remove remove python-openssl
+pip install pyOpenSSL
 
 # And another when invoking system pip(2) fails:
 # TypeError: from_buffer() cannot return the address of the raw string within
