@@ -36,7 +36,7 @@ sudo easy_install -U cryptography
 #sudo python -m easy_install --upgrade pyOpenSSL==19.1.0
 #   File "build/bdist.linux-x86_64/egg/OpenSSL/SSL.py", line 199, in <module>
 # AttributeError: 'module' object has no attribute 'Cryptography_HAS_SSL_ST'
-apt-get --auto-remove remove python-openssl
+apt-get -y --auto-remove remove python-openssl
 pip install pyOpenSSL
 
 # And another when invoking system pip(2) fails:
