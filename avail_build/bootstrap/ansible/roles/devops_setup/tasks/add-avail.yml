@@ -1,0 +1,8 @@
+---
+# Create an avail group
+- name: Create avail User Group
+  action: group name=avail
+
+# Create avail user account
+- name: Create avail User Account
+  action: user name=avail comment="Avail User" group=avail shell=/bin/bash createhome=yes password={{password}}

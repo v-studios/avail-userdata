@@ -1,0 +1,78 @@
+--- 
+- name: Install supervisor
+  apt: name=supervisor state=present cache_valid_time=3600
+  notify:
+    - restart supervisor
+
+# Create a group for the healthcheck user
+- name: Create healthcheck User Group
+  group: name=healthcheck state=present
+  tags: healthcheck
+
+# Create user account for running healthchecks
+- name: Create healthcheck User Account
+  user: name=healthcheck comment="Healthcheck User" group=healthcheck groups=avail shell=/bin/bash createhome=yes password={{ password }} state=present
+  tags: healthcheck
+
+- name: Configure supervisor config for all roles
+  template: src=supervisord.conf.j2 dest=/etc/supervisor/supervisord.conf 
+  notify:
+    - restart supervisor
+
+- name: Create Avail logging directory, group write by avail for uwsgi logs
+  file: path=/var/log/avail state=directory mode=775 owner=root group=avail
+
+- name: Configure logrotate to rotate logs in Avail logging directory
+  copy: src=avail dest=/etc/logrotate.d/avail mode=644 owner=root group=root
+
+- name: Configure supervisor script for avail_api role
+  template: src=avail_api.sh dest={{ avail_dir }}/{{ avail_role }}/{{ avail_role }}.sh 
+  when: inventory_hostname in groups.avail_api
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor script for avail_api role job workers
+  template: src=avail_api-job.sh dest={{ avail_dir }}/{{ avail_role }}/{{ avail_role }}-job.sh
+  when: inventory_hostname in groups.avail_api
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor script for avail_imageresizer role
+  template: src=avail_imageresizer.sh dest={{ avail_dir }}/{{ avail_role }}/{{ avail_role }}.sh 
+  when: inventory_hostname in groups.avail_imageresizer
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor script for avail_pipeline role
+  template: src=avail_pipeline.sh dest={{ avail_dir }}/{{ avail_role }}/{{ item }}.sh 
+  when: inventory_hostname in groups.avail_pipeline
+  with_items:
+    - uploaded
+    - transcoded
+    - published
+    - errored
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor config for avail_api and avail_imageresizer roles
+  template: src=supervisor.j2 dest=/etc/supervisor/conf.d/{{ avail_role }}.conf 
+  when: inventory_hostname not in groups.avail_pipeline
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor config for avail_api role job workers
+  template: src=supervisor-job.j2 dest=/etc/supervisor/conf.d/{{ avail_role }}-job.conf 
+  when: inventory_hostname in groups.avail_api
+  notify:
+    - restart supervisor
+
+- name: Configure supervisor configs for avail_pipeline role
+  template: src=pipeline.j2 dest=/etc/supervisor/conf.d/{{ item }}.conf 
+  when: inventory_hostname in groups.avail_pipeline
+  with_items:
+    - uploaded
+    - transcoded
+    - published
+    - errored
+  notify:
+    - restart supervisor

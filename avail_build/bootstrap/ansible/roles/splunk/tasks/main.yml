@@ -1,0 +1,30 @@
+--- 
+
+# Splunk server knows 3 client names for AVAIL: avail-api, avail-resizer, avail-pipeline - pick one
+  - name: configure splunk agent - client name
+    lineinfile: dest={{ splunk_client_name_file }} regexp='^clientName' line='clientName = {{ splunk_clientName }}'
+    notify:
+       - restart splunk
+
+# The splunk server hostname is now set correctly in the baseline AMI
+#  leaving the task commented for reference in case we need to change it
+
+#  - name: configure splunk agent - server hostname
+#    lineinfile: dest={{ splunk_server_name_file }} regexp='targetUri' line='targetUri = {{ splunk_server_hostname }}'
+#    notify:
+#       - restart splunk
+
+  # On startup, splunk reads the EC2-assigned name and stores it;
+  # we have to overwrite with our images-$role-asg-$env-pubvpc UNIX hostname
+  # that we have set after splunk has already started
+
+  - name: overwrite inputs.conf EC2 name with our new unix hostname
+    lineinfile: dest={{ splunk_inputs_conf_file }} regexp='^host' line='host = {{ unix_hostname }}'
+    notify:
+       - restart splunk
+
+  - name: overwrite server.conf EC2 name with our new unix hostname
+    lineinfile: dest={{ splunk_server_conf_file }} regexp='^serverName' line='serverName = {{ unix_hostname }}'
+    notify:
+       - restart splunk
+

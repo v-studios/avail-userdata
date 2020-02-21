@@ -1,0 +1,43 @@
+--- 
+# Replaced on ansible > 2.6
+#  - name: Gather EC2 facts
+#    action: ec2_facts
+#    tags: devops
+
+  - name: Gather EC2 facts
+    action: ec2_metadata_facts
+    tags: devops
+
+# Workaround for bug in ubuntu 12.04 where apt-get update fails on a fresh installation
+  - name: remove duplicate apt repo lists
+    shell: rm -rf /var/lib/apt/lists/* && apt-get update && apt-get clean
+    when: ansible_distribution_version == "12.04"
+    tags: devops
+
+
+# Add devops user accounts
+  - include: add-devops.yml
+    tags: devops, add-devops-users
+
+# Check connectivity for required URLs
+#  - include: check-connectivity.yml
+#    when: connectivity_urls_list is defined
+#    tags: devops
+
+# ** No "apt-get upgrade" to ensure package versions aren't installing new  ** 
+# ** package versions and breaking functionality during auto-scale deploys  **
+#  - name: update packages
+#    apt: upgrade=safe update_cache=yes cache_valid_time=3600
+ 
+# Add sudo privs for devops user accounts
+  - include: add-sudoers-commands.yml
+    tags: devops
+
+# Add Avail user account
+  - include: add-avail.yml    
+
+# Set the hostname to conform to WP/MPG naming convention so we can find ours
+# also sets the fact `unix_hostname` for use by later splunk work
+
+  - include: set-hostname.yml
+

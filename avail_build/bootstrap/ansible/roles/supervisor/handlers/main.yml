@@ -1,0 +1,10 @@
+---
+# Handlers for common notifications.
+- name: restart supervisor
+  service: name=supervisor state=restarted sleep=5
+
+- name: start supervisor
+  service: name=supervisor state=started
+
+- name: stop supervisor
+  service: name=supervisor state=stopped

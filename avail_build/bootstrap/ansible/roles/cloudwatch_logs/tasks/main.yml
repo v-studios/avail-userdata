@@ -1,0 +1,24 @@
+---
+- name: Create /var/awslogs/etc/config directory
+  file:
+    path: /var/awslogs/etc/config
+    state: directory
+    mode: 2755
+    owner: root
+    group: avail
+  when: op_env == "dev"
+
+- name: Install libyaml-dev needed by old CloudWatch Log Agent setup
+  apt: name=libyaml-dev state=present cache_valid_time=3600
+
+- name: pip2 install old zipp for Python2 needed by virtualenv
+  command: pip2 install zipp==1.2.0
+
+- name: Install CloudWatch Logs Agent setup script
+  copy:
+    src: awslogs-agent-setup.py
+    dest: /var/awslogs/etc/awslogs-agent-setup.py
+    owner: root
+    group: avail
+    mode: 755
+  when: op_env == "dev"

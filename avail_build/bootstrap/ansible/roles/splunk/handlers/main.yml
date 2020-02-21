@@ -1,0 +1,4 @@
+---
+# Handlers for common notifications.
+- name: restart splunk
+  service: name=splunk state=restarted sleep=5

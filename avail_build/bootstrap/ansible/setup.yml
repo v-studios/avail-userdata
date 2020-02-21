@@ -1,0 +1,53 @@
+---
+- name: Common Setup
+  hosts: all
+  connection: local
+  gather_facts: yes
+  become: yes
+  roles:
+  - { role: devops_setup }
+  - { role: cloudwatch_logs }
+  - { role: nginx, tags: nginx }
+  - { role: splunk, tags: splunk }
+
+- name: Setup AVAIL API
+  hosts: avail_api
+  connection: local
+  become: yes
+  roles:
+  - { role: avail_api, tags: avail_api }
+
+- name: Setup AVAIL Image Resizer
+  hosts: avail_imageresizer
+  connection: local
+  become: yes
+  roles:
+  - { role: avail_imageresizer, tags: avail_imageresizer }
+
+- name: Setup AVAIL Pipeline
+  hosts: avail_pipeline
+  connection: local
+  become: yes
+  roles:
+  - { role: avail_pipeline, tags: avail_pipeline }
+
+- name: Setup Supervisord service manager
+  hosts: all
+  connection: local
+  become: yes
+  roles:
+  - { role: supervisor, tags: supervisor }
+
+- name: Setup avail_prerender server
+  hosts: avail_api
+  connection: local
+  become: yes
+  roles:
+  - { role: avail_prerender, tags: avail_prerender }
+
+- name: Setup avail_healthcheck server
+  hosts: all
+  connection: local
+  become: yes
+  roles:
+  - { role: healthcheck, tags: healthcheck }

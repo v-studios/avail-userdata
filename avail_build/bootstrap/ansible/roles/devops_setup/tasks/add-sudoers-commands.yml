@@ -1,0 +1,6 @@
+---
+# Setup sudoers file
+- name: Add sudoers commands
+  template: src=devops-sudo-commands.j2 dest=/etc/sudoers.d/{{ app_group }} owner=root group=root mode=0440 backup=yes validate='visudo -cf %s'
+  tags: add-sudo-commands
+

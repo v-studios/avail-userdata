@@ -1,0 +1,6 @@
+---
+splunk_server_hostname: "spl-master.nasawestprime.com:8089"
+splunk_client_name_file: /opt/splunkforwarder/etc/system/local/deploymentclient.conf
+splunk_server_name_file: /opt/splunkforwarder/etc/apps/nwp_us-east-1_deploymentclient/local/deploymentclient.conf
+splunk_inputs_conf_file: /opt/splunkforwarder/etc/system/local/inputs.conf
+splunk_server_conf_file: /opt/splunkforwarder/etc/system/local/server.conf

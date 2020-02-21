@@ -1,0 +1,31 @@
+#!{{ avail_dir }}/{{ avail_role }}/bin/python3
+
+import avail.aws.healthcheck as healthcheck
+
+# Set services to check
+services = ['et', 'dynamodb', 'sqs', 's3', 'avail']
+
+# Set name of AVAIL supervisor service to check
+avail_service_name = 'avail_pipeline-uploaded'
+
+# Set configuration file location
+config_file_prefix = '{{ avail_dir }}/{{ avail_role }}/'
+config_file_name = 'uploaded-{{ op_env }}.ini'
+config_file = config_file_prefix + config_file_name
+
+
+def application(env, start_response):
+    http_body = healthcheck.application(env, start_response, services,
+                                        config_file, avail_service_name)
+    return(http_body)
+
+
+if __name__ == '__main__':
+    env = 'uwsgi'
+
+
+    def start_response(argone, argtwo):
+        return 0
+
+    http_body = application(env, start_response)
+    print(http_body)

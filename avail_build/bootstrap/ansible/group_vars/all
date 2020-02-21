@@ -1,0 +1,12 @@
+---
+# Variables applicable to all hosts
+
+# Default password for linux user accounts created with the user module
+password: "!"
+
+# Set default app_group to devops
+app_group: devops
+
+# Variables applicable to avail hosts
+avail_dir: /usr/local/avail
+avail_build_dir: /avail_build

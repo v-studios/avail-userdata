@@ -1,0 +1,12 @@
+/var/log/avail/*.log {
+	su avail avail
+	weekly
+	missingok
+	rotate 52
+	compress
+	delaycompress
+	notifempty
+	size 20M
+	copytruncate
+	create 0644 avail avail
+}

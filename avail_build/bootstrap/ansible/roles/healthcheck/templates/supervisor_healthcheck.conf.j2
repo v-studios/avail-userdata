@@ -1,0 +1,10 @@
+[program:avail_healthcheck]
+command={{ avail_dir }}/{{ avail_role }}/bin/uwsgi --http :7899 --wsgi-file {{ avail_dir }}/healthcheck/healthcheck_{{ avail_role }}.py
+user=healthcheck
+stopsignal=KILL
+directory={{ avail_dir }}/healthcheck
+stdout_logfile=/var/log/avail/avail_healthcheck.log
+stderr_logfile=/var/log/avail/avail_healthcheck_error.log
+redirect_stdout=true
+autostart=true
+autorestart=true

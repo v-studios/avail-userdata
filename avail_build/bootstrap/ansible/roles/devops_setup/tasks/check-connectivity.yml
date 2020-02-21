@@ -1,0 +1,27 @@
+# For each specified proto://host:port in specified urls, try to connect.
+# We don't have 'nc' be default so make due with 'curl'.
+# You probably want to spec 'connectivity_urs' in your inventory file's host vars
+# since the sites you reach may depend on where you are: dev, stage, prod
+# Examples:
+#  http://www.nasa.gov
+#  https://www.nasa.gov
+#  ldap://dir.nasa.gov
+#  ldaps://dir.nasa.gov
+#  ldap://pubdir.nasa.gov
+#  ldaps://pubdir.nasa.gov
+# This is a hack, but it tests we can connect, so ok (http returns err 52):
+#  dict://oracle-endpoint:1521
+---
+- name: Check Connectivity (list of URLs)
+  command: curl --connect-timeout 5 --silent --show-error --insecure --output /dev/null {{item}}
+  with_items: connectivity_urls_list
+  when: connectivity_urls_list is defined
+  tags: connectivity
+  
+# This is useful for inventory host vars where we can't create actual list objects
+
+- name: Check Connectivity (line of comma-separated URLs)
+  command: curl --connect-timeout 5 --silent --show-error --insecure --output /dev/null {{item}}
+  with_items: connectivity_urls_line.split(',')
+  when: connectivity_urls_line is defined
+  tags: connectivity

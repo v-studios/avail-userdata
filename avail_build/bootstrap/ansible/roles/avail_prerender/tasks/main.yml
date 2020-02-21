@@ -1,0 +1,51 @@
+--- 
+- include_vars: "{{ op_env }}.yml"
+
+- name: Install npm
+  apt: name={{ item }} state=present
+  with_items:
+    - npm
+
+# Install nodejs packages
+- name: Add Apt source for nodejs
+  copy: src=nodesource.list dest=/etc/apt/sources.list.d/nodesource.list mode=644 owner=root group=root
+
+# Update APT repository cache
+- name: Update APT Cache
+  apt: upgrade=safe update_cache=yes
+
+- name: Install nodejs and dependencies
+  apt: name={{ item }} state=latest force=yes
+  with_items:
+    - nodejs
+
+# Create avail_prerender directory
+- name: copy avail_prerender service code into avail_prerender directory
+  copy: src=/avail_build/prerender/ dest={{ avail_dir }}/avail_prerender mode=2755 owner=root group=avail
+
+- name: Install dependencies for prerender service
+  npm:
+    path: "{{ avail_dir }}/avail_prerender"
+
+- name: configure avail_prerender service port
+  lineinfile: dest={{ avail_dir }}/avail_prerender/lib/index.js regexp='^    var port =' line='    var port = options.port || process.env.PORT || {{ avail_prerender_server_port }};'
+
+- name: stop supervisor service
+  service: name=supervisor state=stopped
+
+- name: Configure supervisor config for avail_prerender server & start supervisor
+  template: src=avail_prerender.conf dest=/etc/supervisor/conf.d/avail_prerender.conf
+  when: inventory_hostname in groups.avail_api
+  notify:
+    - start supervisor
+
+# Install nginx config for avail_prerender service
+- name: Add nginx config for avail_prerender service
+  template: src=avail_prerender.conf.j2 dest=/etc/nginx/sites-available/avail_prerender.conf mode=644 owner=root group=root
+  notify:
+    - restart nginx
+
+- name: Enable nginx config for avail_prerender service
+  file: src=/etc/nginx/sites-available/avail_prerender.conf dest=/etc/nginx/sites-enabled/avail_prerender.conf state=link owner=root group=root
+  notify:
+    - restart nginx

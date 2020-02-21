@@ -1,0 +1,48 @@
+# prerender-node server
+upstream prerender {
+  server 127.0.0.1:{{ avail_prerender_server_port }};
+}
+
+server {
+  # Serve all HTTP(80) and HTTPS(443) requests
+  listen 80;
+  listen 443;
+  server_name images.{{ domain_suffix }};
+  access_log /var/log/nginx/prerender.log combined;
+
+  # Use prerender of images bucket for all requests with hostname "/images.{{ domain_suffix }}/"
+  location / {
+    proxy_pass http://prerender;
+    include proxy_params;
+
+    proxy_hide_header Cache-Control;
+    add_header Cache-Control "private";
+    proxy_hide_header User-Agent;
+    proxy_set_header User-Agent "Mozilla/5.0 (avail_prerender)";
+
+    rewrite_log on;
+    rewrite .* /http://images.{{ domain_suffix }}.s3-website-us-east-1.amazonaws.com$request_uri break;
+  }
+}
+
+server {
+  # Serve all HTTP(80) and HTTPS(443) requests
+  listen 80;
+  listen 443;
+  server_name images-assets.{{ domain_suffix }};
+  access_log /var/log/nginx/prerender.log combined;
+
+  # Use prerender of images_assets for all requests with hostname "/images-assets.{{ domain_suffix }}/"
+  location / {
+    proxy_pass http://prerender;
+    include proxy_params;
+
+    proxy_hide_header Cache-Control;
+    add_header Cache-Control "private";
+    proxy_hide_header User-Agent;
+    proxy_set_header User-Agent "Mozilla/5.0 (avail_prerender)";
+
+    rewrite_log on;
+    rewrite .* /http://images-assets.{{ domain_suffix }}.s3-website-us-east-1.amazonaws.com$request_uri break;
+  }
+}

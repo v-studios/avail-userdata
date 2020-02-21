@@ -1,0 +1,12 @@
+--- 
+
+# Install nginx-full. nginx-lite doesn't include  native uwsgi protocol support
+  - name: Install nginx-full
+    apt: name=nginx-full state=present cache_valid_time=3600
+    notify:
+       - restart nginx
+
+  - name: Enable logging of real client ip addresses
+    copy: src=log_real_ip.conf dest=/etc/nginx/conf.d/log_real_ip.conf owner=root group=root mode=0644
+    notify:
+       - restart nginx

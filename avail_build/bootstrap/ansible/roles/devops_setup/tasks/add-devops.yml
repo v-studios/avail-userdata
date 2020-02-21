@@ -1,0 +1,22 @@
+---
+- include_vars: devops_users.yml
+
+# Create a common group for members of the devops group
+- name: Create Devops User Group
+  action: group name=devops
+
+# Create per-user groups for members of the devops group
+# Ansible user module needs the primary user group to exist before it will create a user account
+- name: Create Devops Users Primary Groups
+  action: group name={{ item }}
+  with_items: "{{ devops_users }}"
+
+# Create user accounts for members of the devops group
+- name: Create devops User Accounts
+  action: user name={{ item }} comment="Dev Ops" group={{ item }} groups=devops shell=/bin/bash createhome=yes password={{password}}
+  with_items: "{{ devops_users }}"
+
+# Enable ssh-key auth to each user account with their individual pubkey
+- name: Enable Key-based SSH Access For devops Users
+  authorized_key: user={{ item }} key="{{ lookup('file','pubkeys/' + item + '.pub') }}"
+  with_items: "{{ devops_users }}"

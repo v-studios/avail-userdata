@@ -1,0 +1,95 @@
+--- 
+# Create avail directory
+- name: Create /usr/local/avail directory
+  file: path={{ avail_dir }} state=directory mode=2755 owner=root group=avail
+
+- name: Install avail_api CloudWatch Logs Agent config
+  copy: src=awslogs.conf dest=/var/awslogs/etc/config/awslogs.conf owner=root group=avail mode=644
+  when: op_env == "dev"
+
+- name: Configure & start CloudWatch Logs Agent
+  shell: "./awslogs-agent-setup.py -n -r us-east-1 -c ./config/awslogs.conf"
+  args:
+    chdir: /var/awslogs/etc/
+  when: op_env == "dev"
+
+- name: Install avail_api nginx site config
+  copy: src={{ avail_role }}.conf dest=/etc/nginx/sites-available/{{ avail_role }}.conf owner=root group=root mode=644
+
+- name: enable avail_api nginx site
+  file: src=/etc/nginx/sites-available/{{ avail_role }}.conf dest=/etc/nginx/sites-enabled/{{ avail_role }}.conf state=link owner=root group=root
+
+- name: Create nginx avail_cache proxy/cache dir
+  file: path=/usr/share/nginx/avail_cache state=directory mode=0755 owner=www-data group=www-data
+
+- name: Install nginx config for avail-cache
+  copy: src=avail_cache.conf dest=/etc/nginx/conf.d/avail_cache.conf owner=root group=root mode=644
+
+# Make Nginx tell Pyramid to default to using scheme='https' so URLs in responses to clients,
+# e.g., the top-level 'href' value in a recent.json file, will always start with 'https://'.
+- name: Set URL scheme to https in proxy_params config file
+  lineinfile: dest=/etc/nginx/proxy_params regexp='X-Forwarded-Proto' line='proxy_set_header X-Forwarded-Proto https;'
+
+- name: Create 502.json response alternative to 50x.html
+  copy: src=502.json dest=/usr/share/nginx/html/502.json owner=root group=root mode=644
+  # See all codes and text at https://github.com/dcolens/nginx-json-errors
+
+- name: disable default nginx site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  notify:
+    - restart nginx
+
+# TODO: remove this once the Splunk AMI is correctly and the whole play can run
+# successfully. But, until then, leave this so that nginx actually gets kicked.
+- name: force restart nginx
+  service: name=nginx state=restarted
+
+- name: Install avail required python2 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python-pip
+    - awscli
+
+# Install python3 and virtualenv after aws-cfn since Ubuntu python3 virtualenv is broken
+- name: Install avail required python3 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python3.5-dev
+    - python3-pip
+    - python-virtualenv
+
+# Install python3-saml prereqs.
+- name: Install avail_api required python3-saml packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - libxml2-dev
+    - libxmlsec1-dev
+    - libxmlsec1-openssl
+    - xmlsec1
+    - pkg-config
+
+# Activate virtualenv, install avail into it
+- name: Activate virtualenv
+  shell: "virtualenv --python=python3.5 {{ avail_dir }}/{{ avail_role }}"
+
+- name: Get our IP address for log config in .ini file (and later hostname)
+  set_fact:
+    ip_addr: "{{ansible_default_ipv4.address}}"
+
+# Install avail uwsgi config
+- name: install avail uwsgi config
+  template: src={{ avail_build_dir }}/{{ op_env }}.ini dest={{ avail_dir }}/{{ avail_role }}/{{ op_env }}.ini group=avail mode=640
+
+# Install avail uwsgi config
+- name: install avail uwsgi job config
+  template: src={{ avail_build_dir }}/{{ op_env }}-job.ini dest={{ avail_dir }}/{{ avail_role }}/{{ op_env }}-job.ini group=avail mode=640
+
+- name: Upgrade pip from version packaged in wheelhouse using system pip3
+  shell: "pip3 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ -U pip"
+
+- name: Install uWSGI from source
+  # Keep version sync'd w/ avail_api/requirements.j2.
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install uWSGI==2.0.15"
+
+- name: Install everything else from wheelhouse
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ {{ avail_role }}"

@@ -1,0 +1,10 @@
+[program:{{ avail_role }}-job]
+command=bash {{ avail_dir }}/{{ avail_role }}/{{ avail_role }}-job.sh
+stopsignal=QUIT
+user=avail
+directory={{ avail_dir }}/{{ avail_role }}
+stdout_logfile=/var/log/avail/{{ avail_role }}.log
+stderr_logfile=/var/log/avail/{{ avail_role }}_error.log
+redirect_stdout=true
+autostart=true
+autorestart=true

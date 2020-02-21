@@ -1,0 +1,14 @@
+[all]
+127.0.0.1
+
+[localhost]
+127.0.0.1
+
+[avail_api]
+127.0.0.2
+
+[avail_imageresizer]
+127.0.0.3
+
+[avail_pipeline]
+127.0.0.4

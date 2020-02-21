@@ -1,0 +1,140 @@
+--- 
+# Create avail directory
+- name: Create /usr/local/avail directory
+  file: path={{ avail_dir }} state=directory mode=2755 owner=root group=avail
+
+- name: Install avail_pipeline CloudWatch Logs Agent config
+  copy: src=awslogs.conf dest=/var/awslogs/etc/config/awslogs.conf owner=root group=avail mode=644
+  when: op_env == "dev"
+
+- name: Configure & start CloudWatch Logs Agent
+  shell: "./awslogs-agent-setup.py -n -r us-east-1 -c ./config/awslogs.conf"
+  args:
+    chdir: /var/awslogs/etc/
+  when: op_env == "dev"
+
+- name: Install avail_pipeline nginx site config
+  copy: src={{ avail_role }}.conf dest=/etc/nginx/sites-available/{{ avail_role }}.conf owner=root group=root mode=644
+
+- name: enable avail_pipeline nginx site
+  file: src=/etc/nginx/sites-available/{{ avail_role }}.conf dest=/etc/nginx/sites-enabled/{{ avail_role }}.conf state=link owner=root group=root
+
+- name: disable default nginx site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  notify:
+    - restart nginx
+
+- name: Install avail required python2 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python-pip
+    - awscli
+
+# Install python3 and virtualenv after aws-cfn since Ubuntu python3 virtualenv is broken
+- name: Install avail required python3 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python3.5-dev
+    - python3-pip
+    - python3-venv
+    - virtualenv
+
+- name: Install prerequisites for ffmpeg ppa package
+  apt_repository:
+    repo: 'ppa:jonathonf/ffmpeg-4'
+    state: present
+    update_cache: yes
+
+- name: Install ffmpeg ppa package
+  apt:
+    pkg: ffmpeg
+    state: present
+    allow_unauthenticated: yes
+    update_cache: yes
+    cache_valid_time: 3600
+
+# Create /tmp/exiftool directory
+- name: Create /tmp/exiftool dir
+  file: path=/tmp/exiftool state=directory mode=2750 owner=root group=avail
+  tags: exiftool
+
+- name: Copy and extract exiftool source
+  unarchive: src=exiftool-10.05.tgz dest=/tmp/exiftool
+  tags: exiftool
+
+- name: Create exiftool installer
+  shell: perl Makefile.PL
+  args:
+    chdir: /tmp/exiftool
+  tags: exiftool
+
+- name: Run exiftool installer
+  shell: make install
+  args:
+    chdir: /tmp/exiftool
+  tags: exiftool
+
+- name: Copy and extract s3fs binary
+  copy: src=s3fs.ubuntu14.bin dest=/usr/local/bin/s3fs mode=755 owner=root group=root
+  tags: s3fs
+
+- name: Get account details of avail user
+  getent: database=passwd key=avail split=':'
+  tags: s3fs
+
+- name: Create /mnt/avail-private dir
+  file: path=/mnt/avail-private state=directory mode=0750 owner=avail group=avail
+  tags: s3fs
+
+- name: Get name of Private S3 bucket
+  debug: msg="avail-private bucket name is {{ lookup('ini', 'avail.aws.s3.tmp.bucket.name section=app:main file=/avail_build/uploaded-' + op_env + '.ini') }}"
+  tags: s3fs
+
+- name: Mount Private S3 bucket with s3fs
+  shell: "/usr/local/bin/s3fs {{ lookup('ini', 'avail.aws.s3.tmp.bucket.name section=app:main file=/avail_build/uploaded-' + op_env + '.ini') }} /mnt/avail-private -o iam_role,uid={{ getent_passwd.avail[1] }},gid={{ getent_passwd.avail[2] }},ro"
+  become: yes
+  become_user: avail
+  tags: s3fs
+
+- name: Install mediainfo
+  apt: name=mediainfo state=present update_cache=yes cache_valid_time=3600
+  tags: mediainfo
+
+# Activate virtualenv, install avail into it
+- name: Activate virtualenv
+  shell: "python3.5 -m venv {{ avail_dir }}/{{ avail_role }}"
+
+- name: Get our IP address for log config in .ini file (and later hostname)
+  set_fact:
+    ip_addr: "{{ansible_default_ipv4.address}}"
+
+# Install avail uploaded config
+- name: install avail uploaded config
+  template: src={{ avail_build_dir }}/{{ item }}-{{ op_env }}.ini dest={{ avail_dir }}/{{ avail_role }}/{{ item }}-{{ op_env}}.ini group=avail mode=640
+  with_items:
+    - uploaded
+    - transcoded
+    - published
+    - errored
+
+- name: Upgade pip from version packaged in wheelhouse
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ -U pip"
+
+- name: Install uWSGI from source
+  # Keep version sync'd w/ avail_pipeline/requirements.j2.
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install uWSGI==2.0.15"
+
+- name: Install everything else from wheelhouse
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ {{ avail_role }}"
+
+- name: Install json_updater script for cron job
+  copy: src=update_popular_and_recent.sh dest={{ avail_dir }}/update_popular_and_recent.sh owner=root group=root mode=755
+
+- name: Setup cron job to update recent and popular json files
+  cron: name="update recent and popular json files" minute="*/15" job="{{ avail_dir }}/update_popular_and_recent.sh 2>&1 >> /var/log/avail/update_popular_and_recent.log"
+
+- name: Install disk_usage script for cron job
+  copy: src=disk_usage.sh dest={{ avail_dir }}/disk_usage.sh owner=root group=root mode=755
+
+- name: Setup cron job to run disk usage script
+  cron: name="report disk usage" minute="*/5" job="{{ avail_dir }}/disk_usage.sh 2>&1 >> /var/log/avail/disk_usage.log"

@@ -1,0 +1,10 @@
+---
+# Handlers for common notifications.
+- name: stop supervisor
+  service: name=supervisor state=stopped sleep=10
+
+- name: start supervisor
+  service: name=supervisor state=started sleep=10
+
+- name: restart nginx
+  service: name=nginx state=restarted sleep=5

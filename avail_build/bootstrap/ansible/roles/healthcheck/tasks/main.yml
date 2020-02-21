@@ -1,0 +1,34 @@
+--- 
+# Create a group for the healthcheck user
+- name: Create healthcheck User Group
+  group: name=healthcheck state=present
+
+# Create user account for running healthchecks
+- name: Create healthcheck User Account
+  user: name=healthcheck comment="Healthcheck User" group=healthcheck groups=avail shell=/bin/bash createhome=yes password={{ password }} state=present
+
+- name: stop supervisor service
+  service: name=supervisor state=stopped
+
+- name: Configure supervisor config for healthcheck service & start supervisor
+  template: src=supervisor_healthcheck.conf.j2 dest=/etc/supervisor/conf.d/healthcheck.conf
+  notify:
+    - start supervisor
+
+# Create avail healthcheck directory
+- name: Create /usr/local/avail/healthcheck directory
+  file: path={{ avail_dir }}/healthcheck state=directory mode=2755 owner=root group=avail
+
+- name: install healthcheck python script
+  template: src=healthcheck_{{ avail_role }}.py.j2 dest={{ avail_dir }}/healthcheck/healthcheck_{{ avail_role }}.py owner=root group=root mode=755
+
+# Install nginx config for healthcheck service
+- name: Install healthcheck nginx site config
+  template: src=nginx_healthcheck.conf.j2 dest=/etc/nginx/sites-available/healthcheck.conf mode=644 owner=root group=root
+  notify:
+    - restart nginx
+
+- name: enable healthcheck nginx site
+  file: src=/etc/nginx/sites-available/healthcheck.conf dest=/etc/nginx/sites-enabled/healthcheck.conf state=link owner=root group=root
+  notify:
+    - restart nginx

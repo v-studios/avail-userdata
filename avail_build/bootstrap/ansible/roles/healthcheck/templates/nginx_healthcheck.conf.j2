@@ -1,0 +1,17 @@
+upstream healthcheck {
+  server 127.0.0.1:7899;
+}
+
+server {
+  listen 7890 default_server;
+  server_name avail_healthcheck;
+
+  # Add location for healthcheck
+  location = /healthcheck {
+    proxy_pass http://healthcheck;
+    include proxy_params;
+
+    add_header Cache-Control "private";
+  }
+}
+

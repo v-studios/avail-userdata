@@ -1,0 +1,66 @@
+--- 
+# Create avail directory
+- name: Create /usr/local/avail directory
+  file: path={{ avail_dir }} state=directory mode=2755 owner=root group=avail
+
+- name: Install avail_imageresizer CloudWatch Logs Agent config
+  copy: src=awslogs.conf dest=/var/awslogs/etc/config/awslogs.conf owner=root group=avail mode=644
+  when: op_env == "dev"
+
+- name: Configure & start CloudWatch Logs Agent
+  shell: "./awslogs-agent-setup.py -n -r us-east-1 -c ./config/awslogs.conf"
+  args:
+    chdir: /var/awslogs/etc/
+  when: op_env == "dev"
+
+- name: Install avail_imageresizer nginx site config
+  copy: src={{ avail_role }}.conf dest=/etc/nginx/sites-available/{{ avail_role }}.conf owner=root group=root mode=644
+
+- name: enable avail_imageresizer nginx site
+  file: src=/etc/nginx/sites-available/{{ avail_role }}.conf dest=/etc/nginx/sites-enabled/{{ avail_role }}.conf state=link owner=root group=root
+
+- name: disable default nginx site
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  notify:
+    - restart nginx
+
+- name: force restart nginx in case notify is lost to errors
+  service: name=nginx state=restarted
+
+- name: Install avail required python2 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python-pip
+
+# Install python3 and virtualenv after aws-cfn since Ubuntu python3 virtualenv is broken
+- name: Install avail required python3 packages
+  apt: name={{ item }} state=present update_cache=yes cache_valid_time=3600
+  with_items:
+    - python3.5-dev
+    - python3-pip
+    - python-virtualenv
+    - libjpeg-dev
+    - libtiff5-dev
+    - zlib1g-dev
+
+# Activate virtualenv, install avail into it
+- name: Activate virtualenv
+  shell: "virtualenv --python=python3.5 {{ avail_dir }}/{{ avail_role }}"
+
+- name: Get our IP address for log config in .ini file (and later hostname)
+  set_fact:
+    ip_addr: "{{ansible_default_ipv4.address}}"
+
+# Install avail uwsgi config
+- name: install avail uwsgi config
+  template: src={{ avail_build_dir }}/{{ op_env }}.ini dest={{ avail_dir }}/{{ avail_role }}/{{ op_env }}.ini group=avail mode=640
+
+- name: Upgrade pip from version packaged in wheelhouse using system pip3
+  shell: "pip3 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ -U pip"
+
+- name: Install uWSGI from source
+  # Keep version sync'd w/ avail_imageresizer/requirements.j2.
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install uWSGI==2.0.16"
+
+- name: Install everything else from wheelhouse
+  shell: "{{ avail_dir }}/{{ avail_role }}/bin/pip3.5 install --pre --no-index --find-links={{ avail_build_dir }}/wheelhouse/ {{ avail_role }}"

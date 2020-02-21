@@ -1,0 +1,7 @@
+---
+- name: Set fact unix_hostname for hostname and later splunk
+  set_fact:
+    unix_hostname: "images-{{avail_role | replace('avail_', '')}}-asg-{{op_env}}-pubvpc-{{ansible_ec2_instance_id}}"
+
+- name: Set UNIX hostname so we can find our servers, conform to WP/MPG conventions
+  hostname: name={{unix_hostname}}
