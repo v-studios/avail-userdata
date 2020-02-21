@@ -57,7 +57,9 @@ pip install pyOpenSSL
 # This works with minor changes to the Ansible plays:
 # - setup.yml: sudo -> become
 # - roles/devops_setup/tasks/main.yml: ec2_facts -> ec2_metadata_facts
-# But now it fails on finding pip3.5 in venv, as we saw earlier
+# But now it fails on finding pip3.5 in venv, as we saw earlier;
+# we can fix that in ansible by apt-get installing python3-venv and
+# using python3.5 -m venv ... to create the venvs.
 
 sudo apt-add-repository --yes --update ppa:ansible/ansible
 sudo apt -y install ansible
