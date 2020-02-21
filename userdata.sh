@@ -49,18 +49,28 @@ pip install pyOpenSSL
 
 
 # Our current userdata removes MPG and pip installs old:
-apt-get -y remove ansible
-pip install ansible==2.1.5.0
+# This runs up to the ffmpeg ppa where it fails with _ssl.c
+# and I can't figure how to work around it
+# apt-get -y remove ansible
+# pip install ansible==2.1.5.0
 # Use the MPG approach to get latest ansible 2.9.4-1 instead of pip install ancient
-# sudo apt-add-repository --yes --update ppa:ansible/ansible
-# sudo apt -y install ansible
-# av==$(dpkg -s ansible|grep Version:)
-# if [ "$av" != "${ANSIBLE_VERSION}" ]
-# then
-#   echo "WARNING unexpected Ansible version='${av}'"
-# fi
+# This works with minor changes to the Ansible plays:
+# - setup.yml: sudo -> become
+# - roles/devops_setup/tasks/main.yml: ec2_facts -> ec2_metadata_facts
+# But now it fails on finding pip3.5 in venv, as we saw earlier
 
+sudo apt-add-repository --yes --update ppa:ansible/ansible
+sudo apt -y install ansible
+av==$(dpkg -s ansible|grep Version:)
+if [ "$av" != "${ANSIBLE_VERSION}" ]
+then
+  echo "WARNING unexpected Ansible version='${av}'"
+fi
 
+# Try to solve ffmpeg PPA install _ssl.c uknown error
+# Nope, we already had the latest.
+# I think we need to try andible-recent, not ancient
+# sudo apt-get install -y ca-certificates
 
 mkdir ${ec2_tarball_build_dir}
 cd ${ec2_tarball_build_dir}
